@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import calculo as calc
 from decimal import Decimal
+import os
+import json
 
 class Tela(tk.Frame):
     class Tabela:
@@ -88,19 +90,47 @@ class Tela(tk.Frame):
         self.frm_comandos = tk.Frame(self)
         self.inserir_frame_de_comandos(tabela=self.tabela1)
     
-        self.frm_table1.grid(row=0, column=0, padx=10, pady=8)
-        ttk.Separator(self, orient='horizontal').grid(row=1, column=0, sticky='nswe', padx=10)
-        self.frm_comandos.grid(row=2, column=0, padx=10, pady=8)
-        ttk.Separator(self, orient='horizontal').grid(row=3, column=0, sticky='nswe', padx=10)
-        self.frm_table2.grid(row=4, column=0, padx=10, pady=8)
+        # Tabela atual
+        self.frm_table1.grid(row=0, column=0, 
+                             columnspan=2, 
+                             padx=10, pady=8)
+        ttk.Separator(self, orient='horizontal').grid(row=1, column=0, 
+                                                      columnspan=2, 
+                                                      sticky='nswe', padx=10)
 
+        # Comandos
+        self.frm_comandos.grid(row=2, column=0, 
+                               columnspan=2, 
+                               padx=10, pady=8)
+
+        ttk.Separator(self, orient='horizontal').grid(row=3, column=0, 
+                                                      columnspan=2, 
+                                                      sticky='nswe', padx=10)
+
+        # Tabela resultante
+        self.frm_table2.grid(row=4, column=0, 
+                             columnspan=2, 
+                             padx=10, pady=8)
+        
+        # Botões
+        
         self.btn_confirmar_calculo = tk.Button(self, 
-                                               text='Trocar', 
-                                               bg="#40a756",
+                                               text='Definir como tabela atual', 
+                                               bg="#b8a226",
                                                fg="#ffffff",
                                                padx=10, pady=5,
                                                command=self.transferir_tabela)
-        self.btn_confirmar_calculo.grid(row=5, column=0, padx=10, pady=10)
+        self.btn_confirmar_calculo.grid(row=5, column=0, 
+                                        padx=10, pady=10)
+
+        self.btn_salvar_passo = tk.Button(self, 
+                                          text='Salvar passo', 
+                                          bg="#1e9c39", 
+                                          fg="#ffffff", 
+                                          padx=10, pady=5, 
+                                          command=self.salvar_passo)
+        self.btn_salvar_passo.grid(row=5, column=1, 
+                                   padx=10, pady=10)
 
 
     def inserir_frame_de_comandos(self, tabela: Tabela):
@@ -138,15 +168,13 @@ class Tela(tk.Frame):
                   text='Calcular nova tabela', 
                   bg="#161f99",
                   fg="#ffffff",
-                  padx=10, pady=10,
+                  padx=10, pady=5,
                   command=lambda tab=tabela: self.on_click_calcular(tab),
                   ).grid(row=1, column=0, columnspan=5, pady=5)
     
     def on_click_calcular(self, tabela: Tabela):
         linha = tabela.tk_vars['pivos']['linha'].get()
         coluna = tabela.tk_vars['pivos']['coluna'].get()
-
-        print(linha, coluna)
 
         antiga_tabela = self.tabela1.tabela
         resultante = calc.recalcular_linhas_tabela(antiga_tabela, linha, coluna)
@@ -155,7 +183,7 @@ class Tela(tk.Frame):
         self.frm_table2 = tk.Frame(self)
         
         self.tabela2 = Tela.Tabela(self.frm_table2, self, 'Tabela resultante', tabela=resultante)
-        self.frm_table2.grid(row=4, column=0, padx=10, pady=10)
+        self.frm_table2.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
 
     def transferir_tabela(self):
         self.frm_table1, self.frm_table2 = self.frm_table2, self.frm_table1
@@ -164,8 +192,8 @@ class Tela(tk.Frame):
         self.frm_table1.grid_forget()
         self.frm_table2.grid_forget()
 
-        self.frm_table1.grid(row=0, column=0, padx=10, pady=8)
-        self.frm_table2.grid(row=4, column=0, padx=10, pady=8)
+        self.frm_table1.grid(row=0, column=0, columnspan=2, padx=10, pady=8)
+        self.frm_table2.grid(row=4, column=0, columnspan=2, padx=10, pady=8)
 
         # troca os títulos
         v1 = self.tabela1.titulo_tabela
@@ -174,11 +202,43 @@ class Tela(tk.Frame):
 
         v1.set(v2.get())
         v2.set(temp)
+    
+    def salvar_passo(self):
+        self.salvar_tabelas()
+        self.transferir_tabela()
+
+    def salvar_tabelas(self, nome=''):
+        if os.path.exists('./tabelas/'):
+            # print('pasta existe')
+            pass
+        else:
+            # print('pasta nao existe')
+            os.mkdir('./tabelas/')
+        
+        if nome == '':
+            nome = 'teste'
+        
+        caminho = f'./tabelas/{nome}.txt'
+
+        with open(caminho, 'a', encoding='utf-8') as f:
+            vars, funcs = self.tabela2.tabela
+            funcs = { k: [str(x) for x in v] for k, v in funcs.items() } # converte de Decimal para str
+
+            f.write('###\n')
+            f.write('variaveis:\n')
+            f.write(str(vars) + '\n')
+            f.write('coeficientes:\n')
+            json.dump(funcs, f, indent=4, ensure_ascii=False)
+            f.write('\n')
+            print('ok')
+              
+
 
 
 if __name__ == '__main__':
     gui = tk.Tk()
-    gui.geometry('800x450')
+    # gui.geometry('800x450')
+    gui.geometry('600x450')
     gui.config(bg="#31313B")
     
     Tela(gui).pack()
