@@ -1,155 +1,186 @@
-from decimal import Decimal, getcontext
+import tkinter as tk
+from tkinter import ttk
+import calculo as calc
+from decimal import Decimal
 
-def mostrar_tabela(tabela):
-    # lista com o nomes das colunas; 
-    # funçõoes com o valor de cada coluna.
-    variaveis, funcoes = tabela
+class Tela(tk.Frame):
+    class Tabela:
+        def __init__(self, master, controlador, titulo = 'Tabela', tabela = None, tk_vars = None):
+            self.frm_tabela = master
+            self.titulo_tabela = tk.StringVar(value=titulo)
 
-    largura = 9 # largura da coluna
+            self.tk_vars = tk_vars
 
-    print('*** Tabela ***')
+            if tk_vars is None:
+                self.tk_vars = {
+                    'variaveis': [], # rótulos das variáveis
+                    'funcoes': {}, # coeficientes de cada variável de cada função restritiva
+                    'pivos': {'linha': tk.StringVar(value='f1'), 'coluna': tk.StringVar(value='x2')} # linha e coluna pivôs
+                }
 
-    # imprime o cabeçalho
-    print(f'| {"f(x)":^{largura}} |', end='')
-    for col in variaveis:
-        print(f' {col:^{largura}} |', end='')
-    print()
+            # tabela --> ([variáveis], {funções})
+            self.tabela = tabela
+            variaveis, funcoes = ([], dict())
 
-    # imprime as linhas
-    for funcao, valores in funcoes.items():
-        linha = f'| {funcao:^{largura}} |'
+            if tabela is not None:
+                variaveis, funcoes = tabela
+            else:
+                # valores padrão, para exemplo
+                variaveis = ['x1a', 'x1b', 'x2', 'x3', 'xF1', 'xF2', 'b']
+                funcoes = {
+                    'z': [Decimal('-3'), Decimal('3'), Decimal('-7'), Decimal('-5'), Decimal('0'), Decimal('0'), Decimal('0')],
+                    'f1': [Decimal('3'), Decimal('-3'), Decimal('1'), Decimal('2'), Decimal('1'), Decimal('0'), Decimal('9')],
+                    'f2': [Decimal('-2'), Decimal('2'), Decimal('1'), Decimal('3'), Decimal('0'), Decimal('1'), Decimal('12')]
+                }
+            
 
-        for coluna in valores:
-            linha += f' {coluna:^{largura}} |'
+            tk.Label(self.frm_tabela, textvariable=self.titulo_tabela, bg="#d8d8d8"
+                     ).grid(row=0, column=0, columnspan=len(variaveis) + 1, sticky='nswe')
 
-        print(linha)
+            ### variáveis
 
-def lista_decimal_para_float(lista):
-    return [float(x) for x in lista]
+            linha_atual = 1 # linha atual no gerenciador grid()
 
-def fazer_copia(tabela):
-    variaveis, funcoes = tabela
+            tk.Label(self.frm_tabela, text='Variáveis:').grid(row=linha_atual, column=0)
 
-    vars = variaveis
-    funcs = {
-        key: val.copy() for key, val in funcoes.items()
-    }
+            self.tk_vars['variaveis'] = [tk.StringVar(value=v) for v in variaveis]
 
-    nova_tabela = (vars, funcs)
+            for col in range(len(variaveis)):
+                celula = tk.Entry(self.frm_tabela, width=8, textvariable=self.tk_vars['variaveis'][col])
+                celula.grid(row=linha_atual, column=1+col)
+            linha_atual += 1
+            
+            ### coeficientes das funções
 
-    return nova_tabela
+            tk.Label(self.frm_tabela, text='Coeficientes:'
+                     ).grid(row=linha_atual, column=0)
+            ttk.Separator(self.frm_tabela, orient='horizontal', 
+                          ).grid(row=linha_atual, column=1, 
+                                 columnspan=len(variaveis), sticky='we',
+                                 padx=5)
+            linha_atual += 1
 
-
-def multiplicacao_escalar_da_linha(tabela, linha, escalar):
-    tabela = fazer_copia(tabela)
-
-    lin = tabela[1][linha]
-
-    for col in range(len(lin)):
-        lin[col] = lin[col] * escalar
+            # definir as variáveis tk da funções
+            for f in funcoes:
+                self.tk_vars['funcoes'][f] = [tk.StringVar(value=f'{funcoes[f][col]}') for col in range(len(variaveis))]
+            
+            # inserir os campos para definir os valores dos coeficientes
+            for f in funcoes:
+                tk.Label(self.frm_tabela, text=f).grid(row=linha_atual, column=0)
+                for col in range(len(variaveis)):
+                    var = self.tk_vars['funcoes'][f][col]
+                    celula = tk.Entry(self.frm_tabela, width=8, textvariable=var)
+                    celula.grid(row=linha_atual, column=1+col)
+                linha_atual += 1
+            
+            # define a tabela
+            self.tabela = (variaveis, funcoes)
     
-    return tabela
+    def __init__(self, master):
+        super().__init__(master)
 
-def divisao_escalar_da_linha(tabela, linha, escalar):
-    tabela = fazer_copia(tabela)
+        self.frm_table1 = tk.Frame(self)
+        self.tabela1 = Tela.Tabela(self.frm_table1, self, 'Tabela atual')
 
-    lin = tabela[1][linha]
+        self.frm_table2 = tk.Frame(self)
+        self.tabela2 = Tela.Tabela(self.frm_table2, self, 'Tabela resultante')
 
-    for col in range(len(lin)):
-        lin[col] = lin[col] / escalar
+        self.frm_comandos = tk.Frame(self)
+        self.inserir_frame_de_comandos(tabela=self.tabela1)
     
-    return tabela
+        self.frm_table1.grid(row=0, column=0, padx=10, pady=8)
+        ttk.Separator(self, orient='horizontal').grid(row=1, column=0, sticky='nswe', padx=10)
+        self.frm_comandos.grid(row=2, column=0, padx=10, pady=8)
+        ttk.Separator(self, orient='horizontal').grid(row=3, column=0, sticky='nswe', padx=10)
+        self.frm_table2.grid(row=4, column=0, padx=10, pady=8)
 
-def calcular_razao_minima(tabela, coluna_pivo):
-    vars, funcoes = tabela
+        self.btn_confirmar_calculo = tk.Button(self, 
+                                               text='Trocar', 
+                                               bg="#40a756",
+                                               fg="#ffffff",
+                                               padx=10, pady=5,
+                                               command=self.transferir_tabela)
+        self.btn_confirmar_calculo.grid(row=5, column=0, padx=10, pady=10)
 
-    index_cp = vars.index(coluna_pivo)
-    index_b = vars.index('b')
 
-    print(f'Cálculo da razão mínima. (coluna pivô: \'{coluna_pivo}\')')
-
-    for func, linha in funcoes.items():
-        if func == 'z':
-            continue # ignora a função objetivo
-
-        valor_pivo = linha[index_cp]
-        valor_b = linha[index_b]
-
-        print(f'{func}: {valor_b} / {valor_pivo} ', end='')
-
-        if valor_pivo == 0:
-            print('-> prejudicada')
-        else:
-            print(f'= {valor_b / valor_pivo}')
-
-def converter_valores_para_Decimal(funcoes):
-    for funcao in funcoes.values():
-        for i in range(len(funcao)):
-            funcao[i] = Decimal(f'{funcao[i]}')
-    
-    return funcoes
-
-#####
-
-def get_escolha_menu():
-    escolha = ''
-
-    while True:
-        print('Opções:')
-        print('1. Multiplicar linha por um escalar')
-        print('2. Dividir linha por um escalar')
-        print('3. Mostrar tabela atual')
-        print('0. Sair')
+    def inserir_frame_de_comandos(self, tabela: Tabela):
+        variaveis, funcoes = tabela.tabela
         
-        try:
-            escolha = int(input('Escolha: '))
+        # coluna/variável pivô (entra na base)
+        tk.Label(self.frm_comandos, 
+                 text='Coluna pivô\n(que entra na base):', 
+                 justify='right'
+                 ).grid(row=0, column=0)
+        ttk.Combobox(self.frm_comandos, 
+                     values=variaveis,
+                     state='readonly',
+                     width=8,
+                     textvariable=tabela.tk_vars['pivos']['coluna'],
+                     ).grid(row=0, column=1)
+        
+        ttk.Separator(self.frm_comandos, 
+                      orient='vertical'
+                      ).grid(row=0, column=2, padx=10, pady=2, sticky='nswe')
+        
+        # linha pivô (sai da base)
+        tk.Label(self.frm_comandos, 
+                 text='Linha pivô\n(que sai da base):', 
+                 justify='right'
+                 ).grid(row=0, column=3)
+        ttk.Combobox(self.frm_comandos, 
+                     values=list(funcoes.keys()),
+                     state='readonly',
+                     width=8,
+                     textvariable=tabela.tk_vars['pivos']['linha'],
+                     ).grid(row=0, column=4)
+        
+        tk.Button(self.frm_comandos, 
+                  text='Calcular nova tabela', 
+                  bg="#161f99",
+                  fg="#ffffff",
+                  padx=10, pady=10,
+                  command=lambda tab=tabela: self.on_click_calcular(tab),
+                  ).grid(row=1, column=0, columnspan=5, pady=5)
+    
+    def on_click_calcular(self, tabela: Tabela):
+        linha = tabela.tk_vars['pivos']['linha'].get()
+        coluna = tabela.tk_vars['pivos']['coluna'].get()
 
-            if 0 <= escolha <= 3:
-                break
-        except Exception as e:
-            pass
+        print(linha, coluna)
 
-    return escolha
+        antiga_tabela = self.tabela1.tabela
+        resultante = calc.recalcular_linhas_tabela(antiga_tabela, linha, coluna)
 
-def iniciar_modo_de_calculo(tabela):
-    while True:
-        escolha = get_escolha_menu()
+        self.frm_table2.destroy()
+        self.frm_table2 = tk.Frame(self)
+        
+        self.tabela2 = Tela.Tabela(self.frm_table2, self, 'Tabela resultante', tabela=resultante)
+        self.frm_table2.grid(row=4, column=0, padx=10, pady=10)
 
-        match escolha:
-            case 1: pass # mutliplicar
-            case 2: pass # dividir
-            case 3: # mostrar tabela
-                mostrar_tabela(tabela)
-                pass
-            case 0: break
+    def transferir_tabela(self):
+        self.frm_table1, self.frm_table2 = self.frm_table2, self.frm_table1
+        self.tabela1, self.tabela2 = self.tabela2, self.tabela1
 
-    print('\nFim da execução.')
+        self.frm_table1.grid_forget()
+        self.frm_table2.grid_forget()
+
+        self.frm_table1.grid(row=0, column=0, padx=10, pady=8)
+        self.frm_table2.grid(row=4, column=0, padx=10, pady=8)
+
+        # troca os títulos
+        v1 = self.tabela1.titulo_tabela
+        v2 = self.tabela2.titulo_tabela
+        temp = v1.get()
+
+        v1.set(v2.get())
+        v2.set(temp)
+
 
 if __name__ == '__main__':
-    getcontext().prec = 3  # define 3 casas decimais de precisão
+    gui = tk.Tk()
+    gui.geometry('800x450')
+    gui.config(bg="#31313B")
+    
+    Tela(gui).pack()
 
-    variaveis = ['x1a', 'x1b', 'x2', 'x3', 'xF1', 'xF2', 'b']
-    funcoes = converter_valores_para_Decimal({
-        'z':    [-3,  3, -7, -5, 0, 0,  0],
-        'f1':   [ 3, -3,  1,  2, 1, 0,  9],
-        'f2':   [-2,  2,  1,  3, 0, 1, 12]
-    })
-
-    tabela = (variaveis, funcoes)
-
-    iniciar_modo_de_calculo(tabela)
-
-    # mostrar_tabela(tabela)
-
-    # coluna_pivo = 'x2'
-    # calcular_razao_minima(tabela, coluna_pivo) # 'f1' tem a menor razão
-
-    # linha_pivo = 'f1'
-    # print(f'linha pivô: {lista_decimal_para_float(tabela[1][linha_pivo])}')
-
-    # elemento_pivo = 1
-
-    # nova_tabela = multiplicacao_escalar_da_linha(tabela, linha_pivo, elemento_pivo)
-
-    # mostrar_tabela(nova_tabela)
-
+    gui.mainloop()
