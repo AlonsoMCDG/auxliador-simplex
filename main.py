@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import calculo as calc
-from decimal import Decimal
+from decimal import Decimal, getcontext
 import os
 import json
 
@@ -39,7 +39,7 @@ class Tela(tk.Frame):
             tk.Label(self.frm_tabela, textvariable=self.titulo_tabela, bg="#d8d8d8"
                      ).grid(row=0, column=0, columnspan=len(variaveis) + 1, sticky='nswe')
 
-            ### variáveis
+            ### variáveis (cabeçalho da tabela)
 
             linha_atual = 1 # linha atual no gerenciador grid()
 
@@ -52,19 +52,21 @@ class Tela(tk.Frame):
                 celula.grid(row=linha_atual, column=1+col)
             linha_atual += 1
             
-            ### coeficientes das funções
+            ### coeficientes das funções (valores de cada coluna)
 
             tk.Label(self.frm_tabela, text='Coeficientes:'
                      ).grid(row=linha_atual, column=0)
             ttk.Separator(self.frm_tabela, orient='horizontal', 
                           ).grid(row=linha_atual, column=1, 
-                                 columnspan=len(variaveis), sticky='we',
+                                 columnspan=len(variaveis), 
+                                 sticky='we',
                                  padx=5)
             linha_atual += 1
 
             # definir as variáveis tk da funções
             for f in funcoes:
-                self.tk_vars['funcoes'][f] = [tk.StringVar(value=f'{funcoes[f][col]}') for col in range(len(variaveis))]
+                # self.tk_vars['funcoes'][f] = [tk.StringVar(value=f'{funcoes[f][col]}') for col in range(len(variaveis))]
+                self.tk_vars['funcoes'][f] = [tk.StringVar(value=f'{self.decimal_to_string(funcoes[f][col])}') for col in range(len(variaveis))]
             
             # inserir os campos para definir os valores dos coeficientes
             for f in funcoes:
@@ -77,15 +79,62 @@ class Tela(tk.Frame):
             
             # define a tabela
             self.tabela = (variaveis, funcoes)
+        
+        def decimal_to_string(self, d: Decimal, casas=3) -> str:
+            # Converte para string com casas fixas
+            s = f"{float(d):.{casas}f}"
+            if d == calc.BIG_M:
+                s = f"M"
+
+            # Remove zeros à direita e ponto se não for necessário
+            return s.rstrip('0').rstrip('.') if '.' in s else s
+
     
     def __init__(self, master):
         super().__init__(master)
+        getcontext().prec = 4
+
+        BIG_M = calc.BIG_M
+
+        tabelas_lista_de_exercicio = {
+            # tabela da questão 3 da lista
+            'questao3':(
+                ['x1a', 'x1b', 'x2', 'x3', 'xF1', 'xF2', 'b'],
+                {
+                    'z': self.converter_lista([-3, 3, -7, -5, 0, 0, 0]),
+                    'f1': self.converter_lista([3, -3, 1, 2, 1, 0, 9]),
+                    'f2': self.converter_lista([-2, 2, 1, 3, 0, 1, 12])
+                }
+            ),
+            
+            # tabela da questão 4 da lista
+            'questao4':(
+                ['x1', 'x2', 'x3', 'xF1', 'xF2', 'a1', 'a2','b'],
+                {
+                    '-z': self.converter_lista([3, 8, 5, 0, 0, BIG_M, BIG_M, 0]),
+                    'f1': self.converter_lista([0, 3, 4, -1, 0, 1, 0, 70]),
+                    'f2': self.converter_lista([3, 5, 2, 0, -1, 0, 1, 70])
+                }
+            ),
+            'questao4-sem_auxiliares':(
+                ['x1', 'x2', 'x3', 'xF1', 'xF2', 'b'],
+                {
+                    "-z": self.converter_lista(["-0.643", "0.00", "0", "0.6427", "1.214", "-130.0"]),
+                    "f1": self.converter_lista(["-0.6428", "0.00", "1", "-0.3572", "0.2143", "10.0"]),
+                    "f2": self.converter_lista(["0.8571", "1", "0E+2", "0.1429", "-0.2857", "1E+1"])
+                }
+            )
+        }
+        
+
+        # tabela atual mostrada na tela inicialmente
+        tabela_atual = tabelas_lista_de_exercicio['questao4-sem_auxiliares']
 
         self.frm_table1 = tk.Frame(self)
-        self.tabela1 = Tela.Tabela(self.frm_table1, self, 'Tabela atual')
+        self.tabela1 = Tela.Tabela(self.frm_table1, self, titulo='Tabela atual', tabela=tabela_atual)
 
         self.frm_table2 = tk.Frame(self)
-        self.tabela2 = Tela.Tabela(self.frm_table2, self, 'Tabela resultante')
+        self.tabela2 = Tela.Tabela(self.frm_table2, self, titulo='Tabela resultante')
 
         self.frm_comandos = tk.Frame(self)
         self.inserir_frame_de_comandos(tabela=self.tabela1)
@@ -132,6 +181,12 @@ class Tela(tk.Frame):
         self.btn_salvar_passo.grid(row=5, column=1, 
                                    padx=10, pady=10)
 
+    ### converte os valores de `lista` para o tipo Decimal
+    def converter_lista(self, lista):
+        lista_Decimal = []
+        for v in lista:
+            lista_Decimal.append(Decimal(v))
+        return lista_Decimal
 
     def inserir_frame_de_comandos(self, tabela: Tabela):
         variaveis, funcoes = tabela.tabela
@@ -183,17 +238,11 @@ class Tela(tk.Frame):
         self.frm_table2 = tk.Frame(self)
         
         self.tabela2 = Tela.Tabela(self.frm_table2, self, 'Tabela resultante', tabela=resultante)
-        self.frm_table2.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
+        self.frm_table2.grid(row=4, column=0, columnspan=2, padx=10, pady=8)
 
     def transferir_tabela(self):
         self.frm_table1, self.frm_table2 = self.frm_table2, self.frm_table1
         self.tabela1, self.tabela2 = self.tabela2, self.tabela1
-
-        self.frm_table1.grid_forget()
-        self.frm_table2.grid_forget()
-
-        self.frm_table1.grid(row=0, column=0, columnspan=2, padx=10, pady=8)
-        self.frm_table2.grid(row=4, column=0, columnspan=2, padx=10, pady=8)
 
         # troca os títulos
         v1 = self.tabela1.titulo_tabela
@@ -202,6 +251,11 @@ class Tela(tk.Frame):
 
         v1.set(v2.get())
         v2.set(temp)
+                
+        # muda de local
+        self.frm_table1.grid(row=0, column=0, columnspan=2, padx=10, pady=8)
+        self.frm_table2.grid(row=4, column=0, columnspan=2, padx=10, pady=8)
+
     
     def salvar_passo(self):
         self.salvar_tabelas()
@@ -221,18 +275,24 @@ class Tela(tk.Frame):
         caminho = f'./tabelas/{nome}.txt'
 
         with open(caminho, 'a', encoding='utf-8') as f:
-            vars, funcs = self.tabela2.tabela
-            funcs = { k: [str(x) for x in v] for k, v in funcs.items() } # converte de Decimal para str
+            variaveis, funcoes = self.tabela2.tabela
+            funcoes = { k: [str(x) for x in v] for k, v in funcoes.items() } # converte de Decimal para str
 
             f.write('###\n')
             f.write('variaveis:\n')
-            f.write(str(vars) + '\n')
+            f.write(str(variaveis) + '\n')
             f.write('coeficientes:\n')
-            json.dump(funcs, f, indent=4, ensure_ascii=False)
+            f.write('{')
+            for func, coeficientes in funcoes.items():
+                linha = f"'{func}': self.converter_lista(["
+                for coef in coeficientes:
+                    linha += f'{coef}, '
+                linha += ']),'
+                f.write(linha)
+            # json.dump(funcoes, f, indent=4, ensure_ascii=False)
+            f.write('}')
             f.write('\n')
             print('ok')
-              
-
 
 
 if __name__ == '__main__':

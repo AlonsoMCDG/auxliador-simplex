@@ -1,5 +1,7 @@
 from decimal import Decimal, getcontext
 
+BIG_M = 9999999
+
 def print_format(num):
     pass
 
@@ -23,6 +25,9 @@ def mostrar_tabela(tabela):
         linha = f'| {funcao:^{largura}} |'
 
         for coluna in valores:
+            if coluna == BIG_M or coluna == 'M':
+                linha += f' {"M":^{largura}} |'
+
             linha += f' {coluna:^{largura}} |'
 
         print(linha)
@@ -30,6 +35,9 @@ def mostrar_tabela(tabela):
 def multiplicacao_escalar(linha, escalar):
     linha = linha.copy()
     for i in range(len(linha)):
+        if linha[i] == BIG_M or linha[i] == 'M':
+            continue # continua com o valor BIG_M
+
         linha[i] *= escalar
     return linha
 
@@ -39,12 +47,21 @@ def divisao_escalar(linha, escalar):
     
     linha = linha.copy()
     for i in range(len(linha)):
+        if linha[i] == BIG_M or linha[i] == 'M':
+            continue # continua com o valor BIG_M
+
         linha[i] /= escalar
     
     return linha
 
 def somar_linhas(linha_1, linha_2):
-    soma = [linha_1[i] + linha_2[i] for i in range(len(linha_1))]
+    soma = []
+
+    for i in range(len(linha_1)):
+        if linha_1[i] == BIG_M or linha_2[i] == BIG_M or linha_1[i] == 'M' or linha_2[i] == 'M':
+            soma.append(BIG_M)
+        else:
+            soma.append(linha_1[i] + linha_2[i])
 
     return soma
 
