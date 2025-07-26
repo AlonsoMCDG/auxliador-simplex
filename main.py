@@ -280,7 +280,7 @@ class Tela(tk.Frame):
 
             f.write('###\n')
             f.write('variaveis:\n')
-            f.write(str(variaveis) + '\n')
+            f.write(str(variaveis) + ',' + '\n')
             f.write('coeficientes:\n')
             f.write('{')
             for func, coeficientes in funcoes.items():
